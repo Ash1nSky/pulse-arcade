@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#090b14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>PULSE // ARCADE — Multiplayer Android Party Suite</title>
+  <!-- PeerJS for serverless WebRTC P2P Multiplayer across Android phones -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    :root {
+      --bg: #090b14;
+      --surface: #121728;
+      --surface-2: #1b223b;
+      --border: #2a3558;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #a855f7;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 0%, #17203d 0%, var(--bg) 70%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    .app-shell {
+      max-width: 500px;
+      min-height: 100dvh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px 24px;
+      gap: 12px;
+    }
+
+    /* Top Status Bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(18, 23, 40, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      font-size: 0.95rem;
+    }
+
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: 0.55; }
+    }
+
+    .room-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Cards & Buttons */
+    .card {
+      background: rgba(18, 23, 40, 0.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    h2, h3 {
+      margin: 0 0 6px 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 12px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #7c3aed);
+      border-color: #38bdf8;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #16a34a, #059669);
+      border-color: #4ade80;
+      color: #fff;
+    }
+
+    .btn-sm {
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      border-radius: 9px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: #0b0f1d;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 11px 13px;
+      border-radius: 11px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    /* Player Chips & Scoreboard */
+    .players-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .player-chip {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .player-chip.active-turn {
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+    }
+
+    .avatar-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Game Mode Grid */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mode-card {
+      background: linear-gradient(160deg, rgba(27, 34, 59, 0.9), rgba(14, 18, 34, 0.95));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.15s;
+    }
+
+    .mode-card:active {
+      transform: scale(0.97);
+    }
+
+    .mode-card:hover {
+      border-color: var(--accent);
+    }
+
+    .mode-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      width: fit-content;
+    }
+
+    /* Dialed Sensory Game Styles */
+    .swatch-stage {
+      width: 100%;
+      height: 165px;
+      border-radius: 14px;
+      border: 2px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 12px 0;
+      background: #0d1222;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      outline: none;
+      border: 1px solid var(--border);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--accent);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+
+    /* Racing Canvas & Touch Controls */
+    canvas.game-canvas {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #080b14;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      display: block;
+      touch-action: none;
+    }
+
+    .touch-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .control-pad {
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 10px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .control-pad:active, .control-pad.pressed {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--accent);
+    }
+
+    /* Co-op Quantum Grid */
+    .puzzle-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7px;
+      margin: 12px 0;
+    }
+
+    .tile {
+      aspect-ratio: 1;
+      background: #0d1326;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .tile.lit {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.14);
+      box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.25);
+    }
+
+    .tile svg {
+      width: 78%;
+      height: 78%;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Chrono Hold Pad */
+    .chrono-pad {
+      width: 100%;
+      height: 170px;
+      border-radius: 18px;
+      background: radial-gradient(circle, rgba(56,189,248,0.18) 0%, rgba(18,23,40,0.95) 75%);
+      border: 2px dashed var(--accent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 14px 0;
+      touch-action: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .chrono-pad.holding {
+      background: radial-gradient(circle, rgba(168,85,247,0.38) 0%, rgba(18,23,40,0.95) 80%);
+      border-style: solid;
+      border-color: #c084fc;
+      transform: scale(0.985);
+    }
+
+    .big-timer {
+      font-size: 2.6rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .badge-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <div class="topbar">
+      <div class="brand" onclick="App.showScreen('lobby')" style="cursor:pointer;">
+        <span class="pulse-dot"></span>
+        <span>PULSE // ARCADE</span>
+      </div>
+      <div class="room-pill" id="roomIndicator">
+        <span>SEED:</span>
+        <span id="roomCodeDisplay">SYNC</span>
+      </div>
+    </div>
+
+    <!-- Active Squad / Scoreboard Strip -->
+    <div class="players-bar" id="playersBar"></div>
+
+    <!-- SCREEN 1: LOBBY & MULTIPLAYER SETUP -->
+    <div id="screen-lobby" class="card">
+      <div class="badge-row">
+        <h3>Squad & Room Setup</h3>
+        <span style="font-size:0.75rem; color:var(--accent); font-weight:700;" id="netStatus">Seeded / Local Ready</span>
+      </div>
+      <p>Play across Android phones using a live P2P Room Code, share a deterministic Seed Code (Dialed.gg style), or add local players on one device.</p>
+
+      <!-- Room Code / Seed Controls -->
+      <div class="input-row">
+        <input type="text" id="roomCodeInput" maxlength="6" placeholder="Room / Seed Code (e.g. K9X2)" value="K9X2" style="text-transform:uppercase;" />
+        <button class="btn btn-sm" onclick="App.applySeedCode()">Set Seed</button>
+        <button class="btn btn-sm btn-primary" onclick="Net.hostLiveRoom()">Host P2P</button>
+        <button class="btn btn-sm btn-success" onclick="Net.joinLiveRoom()">Join P2P</button>
+      </div>
+
+      <!-- Local Squad Add -->
+      <div class="input-row">
+        <input type="text" id="playerNameInput" maxlength="12" placeholder="Add Friend Name (Pass & Play / Local)" />
+        <button class="btn btn-sm" onclick="App.addLocalPlayer()">+ Add Friend</button>
+      </div>
+
+      <hr style="border:0; border-top:1px solid var(--border); margin: 16px 0;" />
+
+      <div class="badge-row">
+        <h3>Select Game Mode</h3>
+        <span style="font-size:0.75rem; color:var(--muted);">Tap to launch</span>
+      </div>
+
+      <div class="mode-grid">
+        <div class="mode-card" onclick="App.launchGame('dialed')">
+          <div>
+            <span class="mode-tag" style="background:rgba(56,189,248,0.18); color:#38bdf8;">Sensory Memory</span>
+            <h3 style="margin-top:8px; font-size:1rem;">1. DIALED: SENSORY</h3>
+            <p style="font-size:0.78rem;">5 rounds (Max 50 pts): HSB Color Recall, Hz Pitch Match & Shape Geometry.</p>
+          </div>
+          <span style="font-size:0.75rem; font-weight:700; color:var(--accent);">Play 5 Rounds →</span>
+        </div>
+
+        <div class="mode-card" onclick="App.launchGame('racing')">
+          <div>
+            <span class="mode-tag" style="background:rgba(245,158,11,0.18); color:#fbbf24;">Arcade Drift</span>
+            <h3 style="margin-top:8px; font-size:1rem;">2. NEON APEX</h3>
+            <p style="font-size:0.78rem;">3-lap top-down drift racing with boost pads & live P2P ghost cars.</p>
+          </div>
+          <span style="font-size:0.75rem; font-weight:700; color:#fbbf24;">Start Race →</span>
+        </div>
+
+        <div class="mode-card" onclick="App.launchGame('puzzle')">
+          <div>
+            <span class="mode-tag" style="background:rgba(34,197,94,0.18); color:#4ade80;">Co-op Puzzle</span>
+            <h3 style="margin-top:8px; font-size:1rem;">3. QUANTUM GRID</h3>
+            <p style="font-size:0.78rem;">Work together to route laser conduits & charge all 3 reactor cores.</p>
+          </div>
+          <span style="font-size:0.75rem; font-weight:700; color:#4ade80;">Launch Co-op →</span>
+        </div>
+
+        <div class="mode-card" onclick="App.launchGame('chrono')">
+          <div>
+            <span class="mode-tag" style="background:rgba(168,85,247,0.18); color:#c084fc;">Co-op + Versus</span>
+            <h3 style="margin-top:8px; font-size:1rem;">4. CHRONO SYNC</h3>
+            <p style="font-size:0.78rem;">Blind millisecond timer hold. Compete solo & hit the Squad Sync target.</p>
+          </div>
+          <span style="font-size:0.75rem; font-weight:700; color:#c084fc;">Test Reflex →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: DIALED SENSORY SUITE (Color, Sound Hz, Shape) -->
+    <div id="screen-dialed" class="card hidden">
+      <div class="badge-row">
+        <div>
+          <span class="mode-tag" id="dialedRoundType" style="background:rgba(56,189,248,0.2); color:var(--accent);">ROUND 1 / 5 • COLOR</span>
+          <h3 id="dialedTitle" style="margin-top:4px;">Memorize the Target</h3>
+        </div>
+        <button class="btn btn-sm" onclick="App.showScreen('lobby')">Lobby</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; color:var(--muted);">
+        <span id="dialedTurnLabel">Player: You</span>
+        <span id="dialedTotalScore">Total: 0.0 / 50.0</span>
+      </div>
+
+      <!-- Visual Stage -->
+      <div class="swatch-stage" id="dialedStage">
+        <div id="dialedStageContent" style="text-align:center; padding:12px;"></div>
+      </div>
+
+      <!-- Controls Container -->
+      <div id="dialedControls" class="slider-group hidden">
+        <div class="slider-row" id="rowSlider1">
+          <div class="slider-label"><span id="lblSlider1">Hue</span><span id="valSlider1">180°</span></div>
+          <input type="range" id="inpSlider1" min="0" max="360" value="180" oninput="DialedGame.onSliderChange()" />
+        </div>
+        <div class="slider-row" id="rowSlider2">
+          <div class="slider-label"><span id="lblSlider2">Saturation</span><span id="valSlider2">70%</span></div>
+          <input type="range" id="inpSlider2" min="0" max="100" value="70" oninput="DialedGame.onSliderChange()" />
+        </div>
+        <div class="slider-row" id="rowSlider3">
+          <div class="slider-label"><span id="lblSlider3">Brightness</span><span id="valSlider3">70%</span></div>
+          <input type="range" id="inpSlider3" min="0" max="100" value="70" oninput="DialedGame.onSliderChange()" />
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn btn-primary" id="dialedActionBtn" style="flex:1;" onclick="DialedGame.submitOrNext()">Lock In Recall</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: NEON APEX DRIFT RACER -->
+    <div id="screen-racing" class="card hidden">
+      <div class="badge-row">
+        <div>
+          <span class="mode-tag" style="background:rgba(245,158,11,0.2); color:#fbbf24;">3-LAP CIRCUIT</span>
+          <h3 style="margin-top:4px;">NEON APEX DRIFT</h3>
+        </div>
+        <button class="btn btn-sm" onclick="RaceGame.stop(); App.showScreen('lobby')">Lobby</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700; margin-bottom:8px;">
+        <span id="raceLapLabel">Lap: 1 / 3</span>
+        <span id="raceTimeLabel" style="color:var(--accent);">00.00s</span>
+        <span id="raceBestLabel" style="color:#4ade80;">Best: --</span>
+      </div>
+
+      <canvas id="raceCanvas" class="game-canvas" width="480" height="360"></canvas>
+
+      <div class="touch-controls">
+        <div class="control-pad" id="btnSteerLeft">◀ LEFT</div>
+        <div class="control-pad" id="btnSteerRight">RIGHT ▶</div>
+        <div class="control-pad" id="btnBoost" style="border-color:#f59e0b; color:#fbbf24;">⚡ DRIFT / NITRO</div>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: QUANTUM GRID CO-OP PUZZLE -->
+    <div id="screen-puzzle" class="card hidden">
+      <div class="badge-row">
+        <div>
+          <span class="mode-tag" style="background:rgba(34,197,94,0.2); color:#4ade80;">CO-OP LASER CIRCUIT</span>
+          <h3 style="margin-top:4px;">QUANTUM GRID</h3>
+        </div>
+        <button class="btn btn-sm" onclick="PuzzleGame.stop(); App.showScreen('lobby')">Lobby</button>
+      </div>
+      <p>Tap conduits to rotate them 90°. Connect the top-left Emitter to all 3 green Reactor Cores before stability runs out! Moves sync live in P2P rooms.</p>
+
+      <div style="display:flex; justify-content:space-between; font-size:0.84rem; font-weight:800; margin-top:10px;">
+        <span id="puzzleCoresLabel" style="color:#4ade80;">Cores Charged: 0 / 3</span>
+        <span id="puzzleTimerLabel" style="color:#fbbf24;">Stability: 45.0s</span>
+      </div>
+
+      <div class="puzzle-grid" id="puzzleGrid"></div>
+
+      <button class="btn btn-primary" style="width:100%;" onclick="PuzzleGame.initLevel()">New Co-op Board</button>
+    </div>
+
+    <!-- SCREEN 5: CHRONO SYNC TIME CALIBRATION -->
+    <div id="screen-chrono" class="card hidden">
+      <div class="badge-row">
+        <div>
+          <span class="mode-tag" style="background:rgba(168,85,247,0.2); color:#c084fc;">BLIND DURATION RECALL</span>
+          <h3 style="margin-top:4px;">CHRONO SYNC</h3>
+        </div>
+        <button class="btn btn-sm" onclick="App.showScreen('lobby')">Lobby</button>
+      </div>
+      <p>Press and hold the pad below. The clock disappears after 1.00 second—release your thumb at the exact target time!</p>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; background:var(--surface-2); padding:10px 14px; border-radius:12px;">
+        <div>
+          <div style="font-size:0.72rem; color:var(--muted); font-weight:700;">TARGET DURATION</div>
+          <div id="chronoTargetDisplay" style="font-size:1.45rem; font-weight:900; color:var(--accent);">3.50s</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.72rem; color:var(--muted); font-weight:700;">ACTIVE PLAYER</div>
+          <div id="chronoPlayerDisplay" style="font-size:1rem; font-weight:800;">Player 1</div>
+        </div>
+      </div>
+
+      <div class="chrono-pad" id="chronoPad">
+        <div class="big-timer" id="chronoTimerText">0.00s</div>
+        <div style="font-size:0.82rem; font-weight:700; color:var(--muted);" id="chronoHintText">HOLD THUMB HERE TO START</div>
+      </div>
+
+      <div id="chronoResultBox" class="hidden" style="background:var(--surface-2); border-radius:12px; padding:12px; margin-bottom:10px; text-align:center;"></div>
+
+      <button class="btn" style="width:100%;" onclick="ChronoGame.nextChallenge()">Next Target Duration</button>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. DETERMINISTIC SEEDED PRNG & WEB AUDIO SYNTHESIZER
+       ========================================================================= */
+    const Sound = {
+      ctx: null,
+       osc: null,
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      },
+      beep(freq = 440, duration = 0.12, type = 'sine', vol = 0.15) {
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      },
+      haptic(ms = 25) {
+        if (navigator.vibrate) navigator.vibrate(ms);
+      }
+    };
+
+    function hashString(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    /* =========================================================================
+       2. CORE APP STATE & SQUAD MANAGEMENT
+       ========================================================================= */
+    const App = {
+      seedCode: 'K9X2',
+      rng: mulberry32(hashString('K9X2')),
+      players: [
+        { id: 'p1', name: 'Player 1', color: '#38bdf8', score: 0 }
+      ],
+      currentPlayerIdx: 0,
+
+      init() {
+        this.applySeedCode();
+        this.renderPlayers();
+      },
+
+      reseed(suffix = '') {
+        this.rng = mulberry32(hashString(this.seedCode + suffix));
+      },
+
+      applySeedCode() {
+        const val = (document.getElementById('roomCodeInput').value || 'K9X2').trim().toUpperCase();
+        this.seedCode = val;
+        document.getElementById('roomCodeDisplay').textContent = val;
+        this.reseed();
+        Sound.beep(520, 0.08, 'triangle');
+      },
+
+      addLocalPlayer() {
+        const input = document.getElementById('playerNameInput');
+        const name = input.value.trim() || `Player ${this.players.length + 1}`;
+        const palette = ['#38bdf8', '#a855f7', '#22c55e', '#f59e0b', '#ec4899'];
+        this.players.push({
+          id: 'p' + (this.players.length + 1),
+          name,
+          color: palette[this.players.length % palette.length],
+          score: 0
+        });
+        input.value = '';
+        this.renderPlayers();
+        Sound.beep(660, 0.1, 'sine');
+      },
+
+      addPoints(pts) {
+        const p = this.players[this.currentPlayerIdx];
+        if (p) {
+          p.score = Math.round((p.score + pts) * 10) / 10;
+          this.renderPlayers();
+          Net.broadcast({ type: 'SCORE_UPDATE', name: p.name, score: p.score });
+        }
+      },
+
+      nextTurn() {
+        this.currentPlayerIdx = (this.currentPlayerIdx + 1) % this.players.length;
+        this.renderPlayers();
+      },
+
+      renderPlayers() {
+        const bar = document.getElementById('playersBar');
+        bar.innerHTML = this.players.map((p, idx) => `
+          <div class="player-chip ${idx === this.currentPlayerIdx ? 'active-turn' : ''}" onclick="App.currentPlayerIdx=${idx}; App.renderPlayers();">
+            <span class="avatar-dot" style="background:${p.color}"></span>
+            <span>${p.name}</span>
+            <span style="color:var(--accent);">${p.score.toFixed(1)} pts</span>
+          </div>
+        `).join('');
+      },
+
+      showScreen(name) {
+        ['lobby', 'dialed', 'racing', 'puzzle', 'chrono'].forEach(s => {
+          document.getElementById('screen-' + s).classList.toggle('hidden', s !== name);
+        });
+      },
+
+      launchGame(mode, fromNet = false) {
+        this.showScreen(mode);
+        if (!fromNet) {
+          Net.broadcast({ type: 'LAUNCH_GAME', mode, seed: this.seedCode });
+        }
+        if (mode === 'dialed') DialedGame.startSuite();
+        if (mode === 'racing') RaceGame.start();
+        if (mode === 'puzzle') PuzzleGame.initLevel();
+        if (mode === 'chrono') ChronoGame.init();
+      }
+    };
+
+    /* =========================================================================
+       3. WEBRTC P2P NETWORKING (PeerJS) FOR ANDROID PHONES
+       ========================================================================= */
+    const Net = {
+      peer: null,
+      connections: [],
+      isHost: false,
+
+      hostLiveRoom() {
+        if (typeof Peer === 'undefined') {
+          alert('Offline mode active: Using deterministic Seed Code so all friends get identical challenges!');
+          return;
+        }
+        const code = (document.getElementById('roomCodeInput').value || 'K9X2').trim().toUpperCase();
+        App.applySeedCode();
+        const peerId = 'PULSE-ARCADE-2026-' + code;
+        document.getElementById('netStatus').textContent = 'Starting Host...';
+
+        if (this.peer) this.peer.destroy();
+        this.peer = new Peer(peerId);
+        this.isHost = true;
+
+        this.peer.on('open', () => {
+          document.getElementById('netStatus').textContent = `Hosting Live Room: ${code}`;
+          Sound.beep(784, 0.15, 'triangle');
+        });
+
+        this.peer.on('connection', conn => {
+          this.setupConn(conn);
+        });
+
+        this.peer.on('error', () => {
+          document.getElementById('netStatus').textContent = 'Seeded Mode Active';
+        });
+      },
+
+      joinLiveRoom() {
+        if (typeof Peer === 'undefined') return;
+        const code = (document.getElementById('roomCodeInput').value || 'K9X2').trim().toUpperCase();
+        App.applySeedCode();
+        document.getElementById('netStatus').textContent = `Connecting to ${code}...`;
+
+        if (this.peer) this.peer.destroy();
+        this.peer = new Peer();
+        this.isHost = false;
+
+        this.peer.on('open', () => {
+          const conn = this.peer.connect('PULSE-ARCADE-2026-' + code);
+          this.setupConn(conn);
+        });
+      },
+
+      setupConn(conn) {
+        conn.on('open', () => {
+          this.connections.push(conn);
+          document.getElementById('netStatus').textContent = `Live P2P Connected (${this.connections.length + 1} phones)`;
+          Sound.beep(880, 0.15, 'sine');
+          conn.send({
+            type: 'HELLO',
+            name: App.players[0].name,
+            seed: App.seedCode
+          });
+        });
+
+        conn.on('data', data => {
+          if (data.type === 'HELLO') {
+            if (!App.players.some(p => p.name === data.name)) {
+              App.players.push({ id: 'net_' + Date.now(), name: data.name + ' (Phone)', color: '#a855f7', score: 0 });
+              App.renderPlayers();
+            }
+          } else if (data.type === 'LAUNCH_GAME') {
+            document.getElementById('roomCodeInput').value = data.seed;
+            App.applySeedCode();
+            App.launchGame(data.mode, true);
+          } else if (data.type === 'PUZZLE_ROTATE') {
+            PuzzleGame.applyRemoteRotate(data.index, data.rot);
+          } else if (data.type === 'RACE_GHOST') {
+            RaceGame.ghost = data.ghost;
+          } else if (data.type === 'SCORE_UPDATE') {
+            const existing = App.players.find(p => p.name.startsWith(data.name));
+            if (existing) {
+              existing.score = data.score;
+              App.renderPlayers();
+            }
+          }
+        });
+      },
+
+      broadcast(msg) {
+        this.connections.forEach(c => {
+          if (c && c.open) c.send(msg);
+        });
+      }
+    };
+
+    /* =========================================================================
+       4. MODE 1: DIALED SENSORY SUITE (Color HSB + Pitch Hz + Shape Geometry)
+       ========================================================================= */
+    const DialedGame = {
+      round: 1,
+      totalScore: 0,
+      phase: 'memorize', // 'memorize' | 'recall' | 'result'
+      targets: [],
+      timerId: null,
+
+      startSuite() {
+        App.reseed('-DIALED');
+        this.round = 1;
+        this.totalScore = 0;
+        this.targets = [
+          // Rounds 1-3: HSB Color Recall
+          { type: 'color', h: Math.floor(App.rng() * 360), s: Math.floor(35 + App.rng() * 60), b: Math.floor(30 + App.rng() * 60) },
+          { type: 'color', h: Math.floor(App.rng() * 360), s: Math.floor(35 + App.rng() * 60), b: Math.floor(30 + App.rng() * 60) },
+          { type: 'color', h: Math.floor(App.rng() * 360), s: Math.floor(35 + App.rng() * 60), b: Math.floor(30 + App.rng() * 60) },
+          // Round 4: Pitch Recall in Hz
+          { type: 'sound', hz: Math.floor(240 + App.rng() * 520) },
+          // Round 5: Shape Scale & Rotation Recall
+          { type: 'shape', scale: Math.floor(45 + App.rng() * 50), angle: Math.floor(App.rng() * 360) }
+        ];
+        this.startRound();
+      },
+
+      hsbToCss(h, s, b) {
+        // Convert HSB/HSV to HSL for CSS rendering
+        const l = b * (1 - s / 200);
+        const sl = (l === 0 || l === 100) ? 0 : ((b - l) / Math.min(l, 100 - l)) * 100;
+        return `hsl(${h}, ${Math.round(sl)}%, ${Math.round(l)}%)`;
+      },
+
+      // Perceptual Color Distance approximation (0 to 10.0 score)
+      scoreColor(t, g) {
+        const dh = Math.min(Math.abs(t.h - g.h), 360 - Math.abs(t.h - g.h)) / 180;
+        const ds = Math.abs(t.s - g.s) / 100;
+        const db = Math.abs(t.b - g.b) / 100;
+        // Weighted perceptual distance (Hue weighted higher when saturation is high)
+        const hueWeight = 1.35 * (t.s / 100 + 0.3);
+        const dist = Math.sqrt(Math.pow(dh * hueWeight, 2) + Math.pow(ds * 0.85, 2) + Math.pow(db * 0.9, 2));
+        const score = Math.max(0, 10 * (1 - dist * 1.45));
+        return Math.round(score * 10) / 10;
+      },
+
+      startRound() {
+        clearTimeout(this.timerId);
+        this.phase = 'memorize';
+        const t = this.targets[this.round - 1];
+        const p = App.players[App.currentPlayerIdx];
+
+        document.getElementById('dialedTurnLabel').textContent = `Active: ${p.name}`;
+        document.getElementById('dialedTotalScore').textContent = `Suite Score: ${this.totalScore.toFixed(1)} / 50.0`;
+        document.getElementById('dialedControls').classList.add('hidden');
+        document.getElementById('dialedActionBtn').classList.add('hidden');
+
+        const stage = document.getElementById('dialedStage');
+        const content = document.getElementById('dialedStageContent');
+
+        if (t.type === 'color') {
+          document.getElementById('dialedRoundType').textContent = `ROUND ${this.round} / 5 • HSB COLOR RECALL`;
+          document.getElementById('dialedTitle').textContent = 'Memorize This Swatch (3.5s)';
+          stage.style.background = this.hsbToCss(t.h, t.s, t.b);
+          content.innerHTML = `<div style="background:rgba(9,11,20,0.75); padding:6px 14px; border-radius:999px; font-weight:800; font-size:0.85rem;">Lock Hue, Saturation & Brightness in memory...</div>`;
+        } else if (t.type === 'sound') {
+          document.getElementById('dialedRoundType').textContent = `ROUND ${this.round} / 5 • PITCH FREQUENCY RECALL`;
+          document.getElementById('dialedTitle').textContent = 'Listen to the Reference Tone';
+          stage.style.background = '#0d1326';
+          content.innerHTML = `
+            <div style="font-size:2rem; font-weight:900; color:var(--accent);">🔊 LISTENING...</div>
+            <p style="margin-top:6px;">Subvocalize or hum the pitch before it vanishes</p>
+          `;
+          Sound.beep(t.hz, 2.2, 'sine', 0.22);
+        } else if (t.type === 'shape') {
+          document.getElementById('dialedRoundType').textContent = `ROUND ${this.round} / 5 • SHAPE GEOMETRY`;
+          document.getElementById('dialedTitle').textContent = 'Memorize Size & Rotation Angle';
+          stage.style.background = '#0d1326';
+          content.innerHTML = this.renderHexagon(t.scale, t.angle, '#38bdf8');
+        }
+
+        this.timerId = setTimeout(() => this.enterRecallPhase(), 3400);
+      },
+
+      renderHexagon(scale, angle, color) {
+        const px = Math.round(scale * 1.3);
+        return `
+          <div style="width:${px}px; height:${px}px; transform:rotate(${angle}deg); border:4px solid ${color}; border-radius:18px; background:rgba(56,189,248,0.18); position:relative; display:flex; align-items:center; justify-content:center;">
+            <div style="width:10px; height:10px; border-radius:50%; background:#fff; position:absolute; top:6px;"></div>
+          </div>
+        `;
+      },
+
+      enterRecallPhase() {
+        this.phase = 'recall';
+        const t = this.targets[this.round - 1];
+        const stage = document.getElementById('dialedStage');
+        const content = document.getElementById('dialedStageContent');
+        const controls = document.getElementById('dialedControls');
+        const btn = document.getElementById('dialedActionBtn');
+
+        controls.classList.remove('hidden');
+        btn.classList.remove('hidden');
+        btn.textContent = 'Lock In Recall';
+
+        const r1 = document.getElementById('rowSlider1');
+        const r2 = document.getElementById('rowSlider2');
+        const r3 = document.getElementById('rowSlider3');
+        const s1 = document.getElementById('inpSlider1');
+        const s2 = document.getElementById('inpSlider2');
+        const s3 = document.getElementById('inpSlider3');
+
+        if (t.type === 'color') {
+          document.getElementById('dialedTitle').textContent = 'Dial In the Color From Memory';
+          r1.classList.remove('hidden');
+          r2.classList.remove('hidden');
+          r3.classList.remove('hidden');
+          document.getElementById('lblSlider1').textContent = 'Hue (H)';
+          s1.min = 0; s1.max = 360; s1.value = 180;
+          document.getElementById('lblSlider2').textContent = 'Saturation (S)';
+          s2.min = 0; s2.max = 100; s2.value = 50;
+          document.getElementById('lblSlider3').textContent = 'Brightness (B)';
+          s3.min = 0; s3.max = 100; s3.value = 50;
+          content.innerHTML = '';
+        } else if (t.type === 'sound') {
+          document.getElementById('dialedTitle').textContent = 'Drag Slider to Match Pitch (Hz)';
+          r1.classList.remove('hidden');
+          r2.classList.add('hidden');
+          r3.classList.add('hidden');
+          document.getElementById('lblSlider1').textContent = 'Frequency (Hz)';
+          s1.min = 200; s1.max = 800; s1.value = 440;
+          stage.style.background = '#0d1326';
+        } else if (t.type === 'shape') {
+          document.getElementById('dialedTitle').textContent = 'Rebuild Scale & Rotation';
+          r1.classList.remove('hidden');
+          r2.classList.remove('hidden');
+          r3.classList.add('hidden');
+          document.getElementById('lblSlider1').textContent = 'Scale (%)';
+          s1.min = 35; s1.max = 100; s1.value = 65;
+          document.getElementById('lblSlider2').textContent = 'Rotation (°)';
+          s2.min = 0; s2.max = 360; s2.value = 0;
+        }
+        this.onSliderChange();
+      },
+
+      onSliderChange() {
+        if (this.phase !== 'recall') return;
+        const t = this.targets[this.round - 1];
+        const v1 = Number(document.getElementById('inpSlider1').value);
+        const v2 = Number(document.getElementById('inpSlider2').value);
+        const v3 = Number(document.getElementById('inpSlider3').value);
+        const stage = document.getElementById('dialedStage');
+        const content = document.getElementById('dialedStageContent');
+
+        if (t.type === 'color') {
+          document.getElementById('valSlider1').textContent = `${v1}°`;
+          document.getElementById('valSlider2').textContent = `${v2}%`;
+          document.getElementById('valSlider3').textContent = `${v3}%`;
+          stage.style.background = this.hsbToCss(v1, v2, v3);
+        } else if (t.type === 'sound') {
+          document.getElementById('valSlider1').textContent = `${v1} Hz`;
+          content.innerHTML = `<div style="font-size:1.8rem; font-weight:900; color:#a855f7;">${v1} Hz</div><p>Tap or slide to audition tone</p>`;
+          Sound.beep(v1, 0.09, 'sine', 0.14);
+        } else if (t.type === 'shape') {
+          document.getElementById('valSlider1').textContent = `${v1}%`;
+          document.getElementById('valSlider2').textContent = `${v2}°`;
+          content.innerHTML = this.renderHexagon(v1, v2, '#a855f7');
+        }
+      },
+
+      submitOrNext() {
+        if (this.phase === 'recall') {
+          this.phase = 'result';
+          Sound.haptic(35);
+          const t = this.targets[this.round - 1];
+          const v1 = Number(document.getElementById('inpSlider1').value);
+          const v2 = Number(document.getElementById('inpSlider2').value);
+          const v3 = Number(document.getElementById('inpSlider3').value);
+          let pts = 0;
+          const stage = document.getElementById('dialedStage');
+          const content = document.getElementById('dialedStageContent');
+
+          if (t.type === 'color') {
+            pts = this.scoreColor(t, { h: v1, s: v2, b: v3 });
+            const origCss = this.hsbToCss(t.h, t.s, t.b);
+            const guessCss = this.hsbToCss(v1, v2, v3);
+            stage.style.background = `linear-gradient(90deg, ${origCss} 50%, ${guessCss} 50%)`;
+            content.innerHTML = `
+              <div style="background:rgba(9,11,20,0.86); padding:10px 16px; border-radius:12px;">
+                <div style="font-size:1.35rem; font-weight:900; color:var(--accent);">+${pts.toFixed(1)} / 10.0 pts</div>
+                <div style="font-size:0.76rem; color:var(--muted);">Left: Target (${t.h}°,${t.s}%,${t.b}%) | Right: Yours (${v1}°,${v2}%,${v3}%)</div>
+              </div>
+            `;
+          } else if (t.type === 'sound') {
+            // Logarithmic octave-aware pitch scoring
+            const semitoneDiff = Math.abs(12 * Math.log2(v1 / t.hz));
+            pts = Math.max(0, Math.round(10 * (1 - semitoneDiff / 7) * 10) / 10);
+            content.innerHTML = `
+              <div style="font-size:1.4rem; font-weight:900; color:#4ade80;">+${pts.toFixed(1)} / 10.0 pts</div>
+              <p>Target Pitch: ${t.hz} Hz • Your Pitch: ${v1} Hz</p>
+            `;
+            Sound.beep(t.hz, 0.35, 'triangle', 0.2);
+          } else if (t.type === 'shape') {
+            const dScale = Math.abs(t.scale - v1) / 65;
+            const dAngle = Math.min(Math.abs(t.angle - v2), 360 - Math.abs(t.angle - v2)) / 180;
+            pts = Math.max(0, Math.round(10 * (1 - (dScale * 0.6 + dAngle * 0.8)) * 10) / 10);
+            content.innerHTML = `
+              <div style="font-size:1.4rem; font-weight:900; color:#fbbf24;">+${pts.toFixed(1)} / 10.0 pts</div>
+              <p>Target: ${t.scale}% @ ${t.angle}° • Yours: ${v1}% @ ${v2}°</p>
+            `;
+          }
+
+          this.totalScore += pts;
+          App.addPoints(pts);
+          document.getElementById('dialedTotalScore').textContent = `Suite Score: ${this.totalScore.toFixed(1)} / 50.0`;
+          document.getElementById('dialedControls').classList.add('hidden');
+          document.getElementById('dialedActionBtn').textContent = this.round < 5 ? `Next Round (${this.round + 1}/5) →` : 'Finish Suite & Next Player';
+        } else {
+          if (this.round < 5) {
+            this.round++;
+            this.startRound();
+          } else {
+            App.nextTurn();
+            this.startSuite();
+          }
+        }
+      }
+    };
+
+    /* =========================================================================
+       5. MODE 2: NEON APEX (Top-Down Physics Drift Racing + Live Ghost)
+       ========================================================================= */
+    const RaceGame = {
+      running: false,
+      rafId: null,
+      car: { x: 240, y: 290, vx: 0, vy: 0, angle: 0, lap: 1, cp: 0 },
+      ghost: null,
+      inputs: { left: false, right: false, boost: false },
+      startTime: 0,
+      bestTime: null,
+      waypoints: [
+        { x: 390, y: 260 },
+        { x: 390, y: 90 },
+        { x: 95, y: 90 },
+        { x: 95, y: 260 },
+        { x: 240, y: 295 } // Finish line
+      ],
+
+      start() {
+        this.stop();
+        this.running = true;
+        this.car = { x: 220, y: 295, vx: 0, vy: 0, angle: 0, lap: 1, cp: 0 };
+        this.startTime = performance.now();
+        this.bindControls();
+        this.loop();
+      },
+
+      stop() {
+        this.running = false;
+        if (this.rafId) cancelAnimationFrame(this.rafId);
+      },
+
+      bindControls() {
+        const bindPad = (id, key) => {
+          const el = document.getElementById(id);
+          el.onpointerdown = (e) => { e.preventDefault(); this.inputs[key] = true; el.classList.add('pressed'); };
+          el.onpointerup = el.onpointerleave = (e) => { e.preventDefault(); this.inputs[key] = false; el.classList.remove('pressed'); };
+        };
+        bindPad('btnSteerLeft', 'left');
+        bindPad('btnSteerRight', 'right');
+        bindPad('btnBoost', 'boost');
+      },
+
+      loop() {
+        if (!this.running) return;
+        this.update();
+        this.draw();
+        this.rafId = requestAnimationFrame(() => this.loop());
+      },
+
+      update() {
+        const c = this.car;
+        const turnRate = this.inputs.boost ? 0.072 : 0.052;
+        if (this.inputs.left) c.angle -= turnRate;
+        if (this.inputs.right) c.angle += turnRate;
+
+        const thrust = this.inputs.boost ? 0.24 : 0.16;
+        c.vx += Math.cos(c.angle) * thrust;
+        c.vy += Math.sin(c.angle) * thrust;
+
+        // Drift friction model
+        const grip = this.inputs.boost ? 0.945 : 0.915;
+        c.vx *= grip;
+        c.vy *= grip;
+
+        c.x += c.vx;
+        c.y += c.vy;
+
+        // Track boundary bounce
+        if (c.x < 28 || c.x > 452) { c.vx *= -0.6; c.x = Math.max(28, Math.min(452, c.x)); Sound.haptic(15); }
+        if (c.y < 28 || c.y > 332) { c.vy *= -0.6; c.y = Math.max(28, Math.min(332, c.y)); Sound.haptic(15); }
+
+        // Inner island collision
+        if (c.x > 145 && c.x < 335 && c.y > 135 && c.y < 225) {
+          c.vx *= -0.7;
+          c.vy *= -0.7;
+        }
+
+        // Checkpoint progression
+        const targetWp = this.waypoints[c.cp];
+        const dist = Math.hypot(c.x - targetWp.x, c.y - targetWp.y);
+        if (dist < 58) {
+          c.cp++;
+          Sound.beep(600 + c.cp * 80, 0.06, 'triangle', 0.1);
+          if (c.cp >= this.waypoints.length) {
+            c.cp = 0;
+            c.lap++;
+            if (c.lap > 3) {
+              const totalSec = ((performance.now() - this.startTime) / 1000);
+              if (!this.bestTime || totalSec < this.bestTime) this.bestTime = totalSec;
+              document.getElementById('raceBestLabel').textContent = `Best: ${this.bestTime.toFixed(2)}s`;
+              const pts = Math.max(2, Math.round((28 - totalSec) * 10) / 10);
+              App.addPoints(pts);
+              Sound.beep(880, 0.25, 'sine', 0.25);
+              c.lap = 1;
+              this.startTime = performance.now();
+            }
+          }
+        }
+
+        const elapsed = ((performance.now() - this.startTime) / 1000).toFixed(2);
+        document.getElementById('raceLapLabel').textContent = `Lap: ${c.lap} / 3`;
+        document.getElementById('raceTimeLabel').textContent = `${elapsed}s`;
+
+        Net.broadcast({ type: 'RACE_GHOST', ghost: { x: c.x, y: c.y, angle: c.angle } });
+      },
+
+      draw() {
+        const canvas = document.getElementById('raceCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Outer Track Asphalt
+        ctx.fillStyle = '#11172a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(22, 22, 436, 316, 44);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner Island
+        ctx.fillStyle = '#090b14';
+        ctx.strokeStyle = '#a855f7';
+        ctx.beginPath();
+        ctx.roundRect(145, 135, 190, 90, 26);
+        ctx.fill();
+        ctx.stroke();
+
+        // Finish Line
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(235, 225, 10, 110);
+
+        // Next Checkpoint Marker
+        const wp = this.waypoints[this.car.cp];
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(wp.x, wp.y, 26, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Draw Live Friend Ghost Car if connected
+        if (this.ghost) {
+          this.drawVehicle(ctx, this.ghost.x, this.ghost.y, this.ghost.angle, 'rgba(168, 85, 247, 0.65)');
+        }
+
+        // Draw Player Car
+        this.drawVehicle(ctx, this.car.x, this.car.y, this.car.angle, '#38bdf8');
+      },
+
+      drawVehicle(ctx, x, y, angle, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(-13, -8, 26, 16, 5);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(4, -5, 6, 10);
+        ctx.restore();
+      }
+    };
+
+    /* =========================================================================
+       6. MODE 3: QUANTUM GRID (Real-Time Co-op Laser Routing Puzzle)
+       ========================================================================= */
+    const PuzzleGame = {
+      board: [],
+      lit: [],
+      timer: 45.0,
+      intervalId: null,
+      solved: false,
+
+      // Tile types and their base port connections [Top(0), Right(1), Bottom(2), Left(3)]
+      SHAPES: {
+        straight: [1, 0, 1, 0],
+        corner:   [1, 1, 0, 0],
+        tee:      [1, 1, 1, 0],
+        cross:    [1, 1, 1, 1],
+        source:   [0, 1, 1, 0],
+        core:     [1, 1, 1, 1]
+      },
+
+      initLevel() {
+        this.stop();
+        App.reseed('-PUZZLE-' + Math.floor(Date.now() / 60000));
+        this.solved = false;
+        this.timer = 45.0;
+        this.board = [];
+
+        const types = ['straight', 'corner', 'corner', 'tee', 'straight', 'corner'];
+        for (let i = 0; i < 25; i++) {
+          if (i === 0) {
+            this.board.push({ type: 'source', rot: 0 });
+          } else if (i === 4 || i === 19 || i === 24) {
+            this.board.push({ type: 'core', rot: 0 });
+          } else {
+            // Guarantee solvable center spines with tee/cross nodes
+            const t = (i % 6 === 0) ? 'cross' : (i % 3 === 0 ? 'tee' : types[Math.floor(App.rng() * types.length)]);
+            this.board.push({ type: t, rot: Math.floor(App.rng() * 4) });
+          }
+        }
+
+        this.recalculateBeam();
+        this.renderGrid();
+
+        this.intervalId = setInterval(() => {
+          if (this.solved) return;
+          this.timer = Math.max(0, this.timer - 0.1);
+          document.getElementById('puzzleTimerLabel').textContent = `Stability: ${this.timer.toFixed(1)}s`;
+          if (this.timer <= 0) {
+            this.stop();
+            document.getElementById('puzzleTimerLabel').textContent = 'Reactor Timed Out! Tap New Board';
+          }
+        }, 100);
+      },
+
+      stop() {
+        if (this.intervalId) clearInterval(this.intervalId);
+      },
+
+      getPorts(tile) {
+        const base = this.SHAPES[tile.type];
+        const r = ((tile.rot % 4) + 4) % 4;
+        return [
+          base[(4 - r) % 4],
+          base[(5 - r) % 4],
+          base[(6 - r) % 4],
+          base[(7 - r) % 4]
+        ];
+      },
+
+      rotateTile(idx) {
+        if (this.solved || idx === 0 || this.board[idx].type === 'core') return;
+        this.board[idx].rot = (this.board[idx].rot + 1) % 4;
+        Sound.beep(500, 0.05, 'sine', 0.1);
+        Sound.haptic(15);
+        Net.broadcast({ type: 'PUZZLE_ROTATE', index: idx, rot: this.board[idx].rot });
+        this.recalculateBeam();
+        this.renderGrid();
+      },
+
+      applyRemoteRotate(idx, rot) {
+        if (!this.board[idx]) return;
+        this.board[idx].rot = rot;
+        this.recalculateBeam();
+        this.renderGrid();
+      },
+
+      recalculateBeam() {
+        this.lit = Array(25).fill(false);
+        const queue = [0];
+        this.lit[0] = true;
+
+        const dirs = [
+          { dr: -1, dc: 0, outPort: 0, inPort: 2 },
+          { dr: 0, dc: 1, outPort: 1, inPort: 3 },
+          { dr: 1, dc: 0, outPort: 2, inPort: 0 },
+          { dr: 0, dc: -1, outPort: 3, inPort: 1 }
+        ];
+
+        while (queue.length > 0) {
+          const curr = queue.shift();
+          const r = Math.floor(curr / 5);
+          const c = curr % 5;
+          const ports = this.getPorts(this.board[curr]);
+
+          dirs.forEach(d => {
+            if (!ports[d.outPort]) return;
+            const nr = r + d.dr;
+            const nc = c + d.dc;
+            if (nr >= 0 && nr < 5 && nc >= 0 && nc < 5) {
+              const nIdx = nr * 5 + nc;
+              const nPorts = this.getPorts(this.board[nIdx]);
+              if (nPorts[d.inPort] && !this.lit[nIdx]) {
+                this.lit[nIdx] = true;
+                queue.push(nIdx);
+              }
+            }
+          });
+        }
+
+        const cores = [4, 19, 24].filter(i => this.lit[i]).length;
+        document.getElementById('puzzleCoresLabel').textContent = `Cores Charged: ${cores} / 3`;
+
+        if (cores === 3 && !this.solved) {
+          this.solved = true;
+          this.stop();
+          Sound.beep(880, 0.3, 'triangle', 0.25);
+          App.players.forEach(p => p.score += 10);
+          App.renderPlayers();
+          document.getElementById('puzzleTimerLabel').textContent = '🎉 ALL CORES ONLINE (+10 Co-op Pts!)';
+        }
+      },
+
+      renderSvg(tile, isLit) {
+        const stroke = isLit ? '#38bdf8' : '#64748b';
+        if (tile.type === 'source') {
+          return `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#38bdf8"/><path d="M20 20 L40 20 M20 20 L20 40" stroke="#38bdf8" stroke-width="6"/></svg>`;
+        }
+        if (tile.type === 'core') {
+          const c = isLit ? '#22c55e' : '#ef4444';
+          return `<svg viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24" rx="6" fill="${c}"/></svg>`;
+        }
+        let path = '';
+        if (tile.type === 'straight') path = 'M20 0 L20 40';
+        if (tile.type === 'corner') path = 'M20 0 L20 20 L40 20';
+        if (tile.type === 'tee') path = 'M20 0 L20 40 M20 20 L40 20';
+        if (tile.type === 'cross') path = 'M20 0 L20 40 M0 20 L40 20';
+        return `<svg viewBox="0 0 40 40" style="transform:rotate(${tile.rot * 90}deg)"><path d="${path}" stroke="${stroke}" stroke-width="6" fill="none" stroke-linecap="round"/></svg>`;
+      },
+
+      renderGrid() {
+        const grid = document.getElementById('puzzleGrid');
+        grid.innerHTML = this.board.map((tile, idx) => `
+          <div class="tile ${this.lit[idx] ? 'lit' : ''}" onclick="PuzzleGame.rotateTile(${idx})">
+            ${this.renderSvg(tile, this.lit[idx])}
+          </div>
+        `).join('');
+      }
+    };
+
+    /* =========================================================================
+       7. MODE 4: CHRONO SYNC (Blind Duration Precision Challenge)
+       ========================================================================= */
+    const ChronoGame = {
+      targetSec: 3.50,
+      holdStart: 0,
+      holding: false,
+      rafId: null,
+
+      init() {
+        App.reseed('-CHRONO');
+        this.nextChallenge();
+        const pad = document.getElementById('chronoPad');
+        pad.onpointerdown = (e) => { e.preventDefault(); this.startHold(); };
+        pad.onpointerup = (e) => { e.preventDefault(); this.endHold(); };
+      },
+
+      nextChallenge() {
+        this.targetSec = Math.round((2.2 + App.rng() * 3.3) * 100) / 100;
+        document.getElementById('chronoTargetDisplay').textContent = `${this.targetSec.toFixed(2)}s`;
+        document.getElementById('chronoPlayerDisplay').textContent = App.players[App.currentPlayerIdx].name;
+        document.getElementById('chronoTimerText').textContent = '0.00s';
+        document.getElementById('chronoHintText').textContent = 'HOLD THUMB HERE TO START';
+        document.getElementById('chronoResultBox').classList.add('hidden');
+      },
+
+      startHold() {
+        if (this.holding) return;
+        this.holding = true;
+        this.holdStart = performance.now();
+        document.getElementById('chronoPad').classList.add('holding');
+        Sound.beep(440, 0.07, 'sine');
+        Sound.haptic(20);
+        this.tick();
+      },
+
+      tick() {
+        if (!this.holding) return;
+        const elapsed = (performance.now() - this.holdStart) / 1000;
+        const timerEl = document.getElementById('chronoTimerText');
+        const hintEl = document.getElementById('chronoHintText');
+
+        if (elapsed < 1.0) {
+          timerEl.textContent = `${elapsed.toFixed(2)}s`;
+          hintEl.textContent = 'CLOCK CLOAKING SOON...';
+        } else {
+          timerEl.textContent = '?.??s';
+          hintEl.textContent = `RELEASE AT EXACTLY ${this.targetSec.toFixed(2)}s!`;
+        }
+        this.rafId = requestAnimationFrame(() => this.tick());
+      },
+
+      endHold() {
+        if (!this.holding) return;
+        this.holding = false;
+        cancelAnimationFrame(this.rafId);
+        document.getElementById('chronoPad').classList.remove('holding');
+
+        const actual = (performance.now() - this.holdStart) / 1000;
+        const err = Math.abs(actual - this.targetSec);
+        const pts = Math.max(0, Math.round(10 * (1 - err / 1.2) * 10) / 10);
+
+        Sound.beep(pts > 7 ? 880 : 360, 0.18, 'triangle');
+        Sound.haptic(35);
+
+        document.getElementById('chronoTimerText').textContent = `${actual.toFixed(2)}s`;
+        document.getElementById('chronoHintText').textContent = `Off by ${(err * 1000).toFixed(0)} ms`;
+
+        const box = document.getElementById('chronoResultBox');
+        box.classList.remove('hidden');
+        box.innerHTML = `<strong style="color:var(--accent); font-size:1.1rem;">+${pts.toFixed(1)} / 10.0 pts</strong> • Target: ${this.targetSec.toFixed(2)}s | Released: ${actual.toFixed(2)}s`;
+
+        App.addPoints(pts);
+        App.nextTurn();
+        document.getElementById('chronoPlayerDisplay').textContent = App.players[App.currentPlayerIdx].name;
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>
