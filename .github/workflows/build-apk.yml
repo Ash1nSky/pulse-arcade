@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -13,147 +16,123 @@ jobs:
       - name: 1. Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 2. Set up Node.js
+      - name: 2. Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
 
-      - name: 3. Set up JDK 21 for Android Gradle
-        uses: actions/setup-java@v4
+      - name: 3. Set up JDK 17 for Capacitor Android
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '17'
 
-      - name: 4. Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: 5. Scaffold Capacitor Android Project
+      - name: 4. Scaffold Capacitor Android Project
         run: |
           mkdir -p www
-          cp index.html www/index.html
-          npm init -y
-          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/assets@3
-
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.friends.pulsearcade",
-            "appName": "Pulse Arcade",
-            "webDir": "www",
-            "backgroundColor": "#090b14",
-            "android": {
-              "allowMixedContent": true,
-              "backgroundColor": "#090b14"
-            }
-          }
-          EOF
-
+          if [ -f index.html ]; then
+            cp index.html www/index.html
+          elif [ -f Index.html ]; then
+            cp Index.html www/index.html
+          else
+            echo "ERROR: index.html was not found in the root of your repository!"
+            exit 1
+          fi
+          node -e 'fs.writeFileSync("package.json", JSON.stringify({name:"pulse-arcade",version:"1.0.0",private:true},null,2))'
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          node -e 'fs.writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.friends.pulsearcade",appName:"Pulse Arcade",webDir:"www",backgroundColor:"#090b14",android:{allowMixedContent:true,backgroundColor:"#090b14"}},null,2))'
           npx cap add android
 
-      - name: 6. Generate Custom Neon Arcade Icon & Splash Screen
+      - name: 5. Generate Custom Neon Arcade Icons
         run: |
           sudo apt-get update && sudo apt-get install -y librsvg2-bin
-          mkdir -p assets
+          node -e '
+            const fs = require("fs");
+            const svg = [
+              "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1024 1024\" width=\"1024\" height=\"1024\">",
+              "  <defs>",
+              "    <radialGradient id=\"bg\" cx=\"50%\" cy=\"35%\" r=\"70%\">",
+              "      <stop offset=\"0%\" stop-color=\"#1e295b\"/>",
+              "      <stop offset=\"100%\" stop-color=\"#090b14\"/>",
+              "    </radialGradient>",
+              "    <linearGradient id=\"neon\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">",
+              "      <stop offset=\"0%\" stop-color=\"#38bdf8\"/>",
+              "      <stop offset=\"100%\" stop-color=\"#a855f7\"/>",
+              "    </linearGradient>",
+              "  </defs>",
+              "  <rect width=\"1024\" height=\"1024\" rx=\"220\" fill=\"url(#bg)\"/>",
+              "  <circle cx=\"512\" cy=\"512\" r=\"370\" fill=\"none\" stroke=\"url(#neon)\" stroke-width=\"36\" stroke-opacity=\"0.85\"/>",
+              "  <circle cx=\"512\" cy=\"512\" r=\"285\" fill=\"none\" stroke=\"#38bdf8\" stroke-width=\"14\" stroke-dasharray=\"65 35\" stroke-opacity=\"0.5\"/>",
+              "  <polygon points=\"512,250 739,381 739,643 512,774 285,643 285,381\" fill=\"#121728\" stroke=\"url(#neon)\" stroke-width=\"28\" stroke-linejoin=\"round\"/>",
+              "  <polyline points=\"230,512 390,512 455,345 565,680 635,512 794,512\" fill=\"none\" stroke=\"#38bdf8\" stroke-width=\"44\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+              "  <circle cx=\"512\" cy=\"512\" r=\"28\" fill=\"#ffffff\"/>",
+              "</svg>"
+            ].join("\n");
+            fs.writeFileSync("icon.svg", svg, "utf8");
+          '
+          RES="android/app/src/main/res"
+          for pair in "mdpi:48:108" "hdpi:72:162" "xhdpi:96:216" "xxhdpi:144:324" "xxxhdpi:192:432"; do
+            IFS=":" read -r dir sz fg <<< "$pair"
+            rsvg-convert -w "$sz" -h "$sz" icon.svg -o "$RES/mipmap-$dir/ic_launcher.png"
+            rsvg-convert -w "$sz" -h "$sz" icon.svg -o "$RES/mipmap-$dir/ic_launcher_round.png"
+            rsvg-convert -w "$fg" -h "$fg" icon.svg -o "$RES/mipmap-$dir/ic_launcher_foreground.png"
+          done
 
-          cat << 'EOF' > assets/icon.svg
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-            <defs>
-              <radialGradient id="bg" cx="50%" cy="35%" r="70%">
-                <stop offset="0%" stop-color="#1e295b"/>
-                <stop offset="100%" stop-color="#090b14"/>
-              </radialGradient>
-              <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#38bdf8"/>
-                <stop offset="100%" stop-color="#a855f7"/>
-              </linearGradient>
-            </defs>
-            <!-- Background -->
-            <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
-            <!-- Outer Cyber Ring -->
-            <circle cx="512" cy="512" r="370" fill="none" stroke="url(#neon)" stroke-width="36" stroke-opacity="0.85"/>
-            <circle cx="512" cy="512" r="285" fill="none" stroke="#38bdf8" stroke-width="14" stroke-dasharray="65 35" stroke-opacity="0.5"/>
-            <!-- Arcade Hex Core -->
-            <polygon points="512,250 739,381 739,643 512,774 285,643 285,381" fill="#121728" stroke="url(#neon)" stroke-width="28" stroke-linejoin="round"/>
-            <!-- Pulse Waveform -->
-            <polyline points="230,512 390,512 455,345 565,680 635,512 794,512" fill="none" stroke="#38bdf8" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="512" cy="512" r="28" fill="#ffffff"/>
-          </svg>
-          EOF
-
-          rsvg-convert -w 1024 -h 1024 assets/icon.svg -o assets/icon-only.png
-          cp assets/icon-only.png assets/icon-foreground.png
-          rsvg-convert -w 2732 -h 2732 assets/icon.svg -o assets/splash.png
-
-          npx @capacitor/assets generate --android --iconBackgroundColor '#090b14' --splashBackgroundColor '#090b14'
-
-      - name: 7. Lock Portrait Orientation & Enable Immersive Fullscreen
+      - name: 6. Lock Portrait Mode & Enable Immersive Fullscreen
         run: |
-          # Patch AndroidManifest.xml for Portrait lock & Native Haptic Vibration
           node -e '
             const fs = require("fs");
             const manifestPath = "android/app/src/main/AndroidManifest.xml";
             let xml = fs.readFileSync(manifestPath, "utf8");
-            xml = xml.replace(
-              "<activity",
-              "<activity android:screenOrientation=\"portrait\""
-            );
-            xml = xml.replace(
-              "</manifest>",
-              "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n</manifest>"
-            );
+            if (!xml.includes("screenOrientation")) {
+              xml = xml.replace("<activity", "<activity android:screenOrientation=\"portrait\"");
+            }
+            if (!xml.includes("android.permission.VIBRATE")) {
+              xml = xml.replace("</manifest>", "    <uses-permission android:name=\"android.permission.VIBRATE\" />\n</manifest>");
+            }
             fs.writeFileSync(manifestPath, xml, "utf8");
+
+            const javaCode = [
+              "package com.friends.pulsearcade;",
+              "import android.os.Bundle;",
+              "import android.view.WindowManager;",
+              "import androidx.core.view.WindowCompat;",
+              "import androidx.core.view.WindowInsetsCompat;",
+              "import androidx.core.view.WindowInsetsControllerCompat;",
+              "import com.getcapacitor.BridgeActivity;",
+              "public class MainActivity extends BridgeActivity {",
+              "    @Override",
+              "    protected void onCreate(Bundle savedInstanceState) {",
+              "        super.onCreate(savedInstanceState);",
+              "        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);",
+              "        enableImmersiveMode();",
+              "    }",
+              "    @Override",
+              "    public void onWindowFocusChanged(boolean hasFocus) {",
+              "        super.onWindowFocusChanged(hasFocus);",
+              "        if (hasFocus) enableImmersiveMode();",
+              "    }",
+              "    private void enableImmersiveMode() {",
+              "        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);",
+              "        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());",
+              "        if (controller != null) {",
+              "            controller.hide(WindowInsetsCompat.Type.systemBars());",
+              "            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);",
+              "        }",
+              "    }",
+              "}"
+            ].join("\n");
+            fs.writeFileSync("android/app/src/main/java/com/friends/pulsearcade/MainActivity.java", javaCode, "utf8");
           '
-
-          # Configure MainActivity.java for Sticky Immersive Fullscreen & Wake Lock
-          cat << 'EOF' > android/app/src/main/java/com/friends/pulsearcade/MainActivity.java
-          package com.friends.pulsearcade;
-
-          import android.os.Bundle;
-          import android.view.WindowManager;
-          import androidx.core.view.WindowCompat;
-          import androidx.core.view.WindowInsetsCompat;
-          import androidx.core.view.WindowInsetsControllerCompat;
-          import com.getcapacitor.BridgeActivity;
-
-          public class MainActivity extends BridgeActivity {
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  // Keep display awake during races and co-op rounds
-                  getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-                  enableImmersiveMode();
-              }
-
-              @Override
-              public void onWindowFocusChanged(boolean hasFocus) {
-                  super.onWindowFocusChanged(hasFocus);
-                  if (hasFocus) {
-                      enableImmersiveMode();
-                  }
-              }
-
-              private void enableImmersiveMode() {
-                  WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-                  WindowInsetsControllerCompat controller =
-                      WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
-                  if (controller != null) {
-                      controller.hide(WindowInsetsCompat.Type.systemBars());
-                      controller.setSystemBarsBehavior(
-                          WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                      );
-                  }
-              }
-          }
-          EOF
-
           npx cap sync android
 
-      - name: 8. Compile Native Android APK
+      - name: 7. Compile Native Android APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: 9. Upload Installable APK Artifact
+      - name: 8. Upload Installable APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Pulse-Arcade-APK
